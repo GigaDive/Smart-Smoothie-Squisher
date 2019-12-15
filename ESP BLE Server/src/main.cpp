@@ -28,30 +28,61 @@ uint32_t value = 0;
 class Fruit1CB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFruit1) {
       std::string value = pFruit1->getValue();
-       
+             if (value.length() > 0) {
+        Serial.println("*********");
+        Serial.print("FRUIT1: ");
+        for (int i = 0; i < value.length(); i++)
+          Serial.print(value[i]);
+
+        Serial.println();
+        Serial.println("*********");
+      }
     }
 };
 
 class Fruit2CB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFruit2) {
       std::string value = pFruit2->getValue();
-       
+             if (value.length() > 0) {
+        Serial.println("*********");
+        Serial.print("FRUIT2: ");
+        for (int i = 0; i < value.length(); i++)
+          Serial.print(value[i]);
+
+        Serial.println();
+        Serial.println("*********");
+      }
     }
 };
 
 class Fruit3CB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFruit3) {
       std::string value = pFruit3->getValue();
-       
+             if (value.length() > 0) {
+        Serial.println("*********");
+        Serial.print("FRUIT3: ");
+        for (int i = 0; i < value.length(); i++)
+          Serial.print(value[i]);
+
+        Serial.println();
+        Serial.println("*********");
+      }
     }
 };
 
 class FlushCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFlush) {
       std::string value = pFlush->getValue();
-        if(value == "1"){
-          //SET EVERY PUMP TO MAX
-        }
+        if (value== "1") {
+        Serial.println("*********");
+        Serial.print("FLUSH ALL PUMPS TILL SOMETHING ELSE ARRIVES");
+        Serial.println();
+        Serial.println("*********");
+      }else{
+        //STOP PUMPS
+        Serial.print("STOP FLUSHING");
+
+      }
     }
 };
 
@@ -61,7 +92,7 @@ class DebugCB: public BLECharacteristicCallbacks {
 
       if (value.length() > 0) {
         Serial.println("*********");
-        Serial.print("New value: ");
+        Serial.print("DEBUG: ");
         for (int i = 0; i < value.length(); i++)
           Serial.print(value[i]);
 
@@ -171,9 +202,7 @@ void setup() {
 void loop() {
     // notify changed value
     if (deviceConnected) {
-        pDEBUG->setValue((uint8_t*)&value, 4);
-        pDEBUG->notify();
-        value++;
+
         delay(10); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
     }
     // disconnecting
