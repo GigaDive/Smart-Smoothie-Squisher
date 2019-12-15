@@ -1,24 +1,3 @@
-/*
-    Video: https://www.youtube.com/watch?v=oCMOYS71NIU
-    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleNotify.cpp
-    Ported to Arduino ESP32 by Evandro Copercini
-    updated by chegewara
-
-   Create a BLE server that, once we receive a connection, will send periodic notifications.
-   The service advertises itself as: 4fafc201-1fb5-459e-8fcc-c5c9c331914b
-   And has a characteristic of: beb5483e-36e1-4688-b7f5-ea07361b26a8
-
-   The design of creating the BLE server is:
-   1. Create a BLE Server
-   2. Create a BLE Service
-   3. Create a BLE Characteristic on the Service
-   4. Create a BLE Descriptor on the characteristic
-   5. Start the service.
-   6. Start advertising.
-
-   A connect hander associated with the server starts a background task that performs notification
-   every couple of seconds.
-*/
 #include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -26,7 +5,12 @@
 #include <BLE2902.h>
 
 BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
+BLECharacteristic* pDEBUG = NULL;
+BLECharacteristic* pFlush = NULL;
+BLECharacteristic* pFRUIT1 = NULL;
+BLECharacteristic* pFRUIT2 = NULL;
+BLECharacteristic* pFRUIT3 = NULL;
+
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
@@ -35,11 +19,45 @@ uint32_t value = 0;
 // https://www.uuidgenerator.net/
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define DEBUG_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define FLUSH_UUID "ae1ed7be-a009-4632-b02b-18675e8d847a"
+#define FRUIT1_UUID "1ed6a335-83b5-4d58-9a94-dda45807ae41"
+#define FRUIT2_UUID "fd64d496-6aeb-4374-9f69-89260a61c1c9"
+#define FRUIT3_UUID "e303dd59-69bf-4027-b64d-080e023c6105"
 
-class MyCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string value = pCharacteristic->getValue();
+class Fruit1CB: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pFruit1) {
+      std::string value = pFruit1->getValue();
+       
+    }
+};
+
+class Fruit2CB: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pFruit2) {
+      std::string value = pFruit2->getValue();
+       
+    }
+};
+
+class Fruit3CB: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pFruit3) {
+      std::string value = pFruit3->getValue();
+       
+    }
+};
+
+class FlushCB: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pFlush) {
+      std::string value = pFlush->getValue();
+        if(value == "1"){
+          //SET EVERY PUMP TO MAX
+        }
+    }
+};
+
+class DebugCB: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pDEBUG) {
+      std::string value = pDEBUG->getValue();
 
       if (value.length() > 0) {
         Serial.println("*********");
@@ -71,7 +89,7 @@ void setup() {
   Serial.begin(9600);
 
   // Create the BLE Device
-  BLEDevice::init("ESP32");
+  BLEDevice::init("Smart-Smoothie-Squisher");
 
   // Create the BLE Server
   pServer = BLEDevice::createServer();
@@ -81,21 +99,63 @@ void setup() {
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
   // Create a BLE Characteristic
-  pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
+  pDEBUG = pService->createCharacteristic(
+                      DEBUG_UUID,
                       BLECharacteristic::PROPERTY_READ   |
                       BLECharacteristic::PROPERTY_WRITE  |
                       BLECharacteristic::PROPERTY_NOTIFY |
                       BLECharacteristic::PROPERTY_INDICATE
                     );
-
+  pFlush = pService->createCharacteristic(
+                      FLUSH_UUID,
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_INDICATE
+                    );
+  pFRUIT1 = pService->createCharacteristic(
+                      FRUIT1_UUID,
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_INDICATE
+                    );
+  pFRUIT2 = pService->createCharacteristic(
+                    FRUIT2_UUID,
+                    BLECharacteristic::PROPERTY_READ   |
+                    BLECharacteristic::PROPERTY_WRITE  |
+                    BLECharacteristic::PROPERTY_NOTIFY |
+                    BLECharacteristic::PROPERTY_INDICATE
+                  );
+  pFRUIT3 = pService->createCharacteristic(
+                      FRUIT3_UUID,
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_INDICATE
+                    );
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create a BLE Descriptor
-  pCharacteristic->addDescriptor(new BLE2902());
+  pDEBUG->addDescriptor(new BLE2902());
+  pDEBUG->setCallbacks(new DebugCB());
+  pDEBUG->setValue("DEBUG VALUE");
 
-  pCharacteristic->setCallbacks(new MyCallbacks());
+  pFlush->addDescriptor(new BLE2902());
+  pFlush->setCallbacks(new FlushCB());
+  pFlush->setValue("FLUSH ALL");
 
-  pCharacteristic->setValue("Hello World");
+  pFRUIT1->addDescriptor(new BLE2902());
+  pFRUIT1->setCallbacks(new Fruit1CB());
+  pFRUIT1->setValue("FRUIT1 VALUE");
+
+  pFRUIT2->addDescriptor(new BLE2902());
+  pFRUIT2->setCallbacks(new Fruit2CB());
+  pFRUIT2->setValue("FRUIT2 VALUE");
+
+  pFRUIT3->addDescriptor(new BLE2902());
+  pFRUIT3->setCallbacks(new Fruit3CB());
+  pFRUIT3->setValue("FRUIT3 VALUE");
+
   // Start the service
   pService->start();
 
@@ -111,8 +171,8 @@ void setup() {
 void loop() {
     // notify changed value
     if (deviceConnected) {
-        pCharacteristic->setValue((uint8_t*)&value, 4);
-        pCharacteristic->notify();
+        pDEBUG->setValue((uint8_t*)&value, 4);
+        pDEBUG->notify();
         value++;
         delay(10); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
     }

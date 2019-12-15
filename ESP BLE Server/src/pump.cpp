@@ -1,8 +1,5 @@
-#include <Arduino.h>
-/*********
-  Rui Santos
-  Complete project details at http://randomnerdtutorials.com  
-*********/
+/* #include <Arduino.h>
+
 
 // Motor A
 int motor1Pin1 = 17; 
@@ -41,7 +38,6 @@ void loop() {
   digitalWrite(motor1Pin2, LOW);
   ledcWrite(pwmChannel, dutyCycle);   
 
-/*
   // Stop the DC motor
   Serial.println("Motor stopped");
   digitalWrite(motor1Pin1, LOW);
@@ -73,5 +69,6 @@ void loop() {
   }
   
   dutyCycle = 200;
-  */
+  
 }
+*/
