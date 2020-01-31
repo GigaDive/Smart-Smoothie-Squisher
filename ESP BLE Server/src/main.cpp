@@ -53,8 +53,8 @@ uint32_t value = 0;
 //Distance Sensor
 long duration;
 int distance = 0;
-const int trigPin = 18;
-const int echoPin = 19;
+const int trigPin = 4;
+const int echoPin = 16;
 
 // Motor A
 int motor1Pin1 = 26;// 14; 
@@ -79,6 +79,28 @@ const int pwm3Channel = 2;
 
 const int resolution = 8;
 int dutyCycle = 255;
+
+
+int senseDistance(){
+ // Clears the trigPin
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+
+// Sets the trigPin on HIGH state for 10 micro seconds
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+
+// Reads the echoPin, returns the sound wave travel time in microseconds
+duration = pulseIn(echoPin, HIGH);
+
+// Calculating the distance
+distance= duration*0.034/2;
+// Prints the distance on the Serial Monitor
+//Serial.print("Distance: ");
+//Serial.println(distance);
+return distance;
+}
 
 class Fruit1CB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFruit1) {
@@ -106,23 +128,24 @@ class Fruit1CB: public BLECharacteristicCallbacks {
 
 class Fruit2CB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFruit2) {
-      if(distance < 11){
+      distance = senseDistance();
+
+      if(distance < 30){
         int val = atoi(pFruit2->getValue().c_str());
         Serial.println(val);
-        val = map(val,500,2600,140,255);
-        digitalWrite(motor1Pin1, HIGH);
-        digitalWrite(motor1Pin2, LOW);
+        val = map(val,400,2600,140,255);
+  
         if(val > 1){
-          ledcWrite(pwm3Channel, val);
+          ledcWrite(pwm2Channel, val);
         }else{
-          ledcWrite(pwm3Channel, 0);
+          ledcWrite(pwm2Channel, 0);
 
         }
-      //  Serial.println(val);
+        Serial.println(val);
       }else{
         Serial.print("Distance: ");
         Serial.println(distance);
-        ledcWrite(pwm1Channel, 0);
+        ledcWrite(pwm2Channel, 0);
 
       }
   }
@@ -151,8 +174,7 @@ class FlushCB: public BLECharacteristicCallbacks {
 
             std::string value = pFlush->getValue();
               int val = atoi(pFlush->getValue().c_str());
-      digitalWrite(motor1Pin1, HIGH);
-        digitalWrite(motor1Pin2, LOW);
+    
 
         if (val== 1) {
         Serial.println("*********");
@@ -216,22 +238,6 @@ class MyServerCallbacks: public BLEServerCallbacks {
 };
 
 
-int senseDistance(){
-    // Clears the trigPin
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    // Sets the trigPin on HIGH state for 10 micro seconds
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    // Reads the echoPin, returns the sound wave travel time in microseconds
-    duration = pulseIn(echoPin, HIGH);
-    distance= duration*0.034/2;
-    // Prints the distance on the Serial Monitor
-
-    return distance;
-}
-
 void setup() {
   Serial.begin(9600);
   pinMode(motor1Pin1, OUTPUT);
@@ -254,7 +260,6 @@ void setup() {
   ledcAttachPin(enable1Pin, pwm1Channel);
   ledcAttachPin(enable2Pin, pwm2Channel);
   ledcAttachPin(enable3Pin, pwm3Channel);
-  Serial.println("enable pumps");
   // Create the BLE Device
   BLEDevice::init("ESP32");
 
@@ -339,25 +344,23 @@ pFruit3 = pService2->createCharacteristic(
   pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
   BLEDevice::startAdvertising();
   Serial.println("Waiting a client connection to notify...");
-  digitalWrite(motor1Pin1, HIGH);
-  digitalWrite(motor1Pin2, LOW);
-  //ledcWrite(pwm1Channel, 70);
-  //ledcWrite(pwm2Channel, 120);
-  //ledcWrite(pwm3Channel, 255);
- /* ledcWrite(pwm1Channel, 70);
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  ledcWrite(pwm1Channel, 255);
+  ledcWrite(pwm2Channel, 255);
+  ledcWrite(pwm3Channel, 255);
+ //ledcWrite(pwm1Channel, 255);
   //digitalWrite(motor2Pin1, HIGH);
   //digitalWrite(motor2Pin2, LOW);
-  ledcWrite(pwm2Channel, 100);
+  //ledcWrite(pwm2Channel, 100);
   //digitalWrite(motor3Pin1, HIGH);
   //digitalWrite(motor3Pin2, LOW);
-  ledcWrite(pwm3Channel, 255);*/
-  //senseDistance();
+  //ledcWrite(pwm3Channel, 255);
 }
 
 
 void loop() {
-    distance = senseDistance();
-
+    
     // notify changed value
     if (deviceConnected) {
         delay(10); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
@@ -374,5 +377,6 @@ void loop() {
         // do stuff here on connecting
         oldDeviceConnected = deviceConnected;
     }
+    
  
   }
