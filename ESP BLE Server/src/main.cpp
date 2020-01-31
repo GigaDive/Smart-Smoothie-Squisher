@@ -38,6 +38,9 @@
 #define FRUIT1_UUID "1ed6a335-83b5-4d58-9a94-dda45807ae41"
 #define FRUIT2_UUID "fd64d496-6aeb-4374-9f69-89260a61c1c9"
 #define FRUIT3_UUID "e303dd59-69bf-4027-b64d-080e023c6105"
+#define SERIAL_PORT 9600
+
+#define MIN_DISTANCE 11
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pDebug = NULL;
@@ -73,104 +76,55 @@ const int freq1 = 22000;
 const int freq2 = 22000;
 const int freq3 = 22000;
 
-const int pwm1Channel = 0;
-const int pwm2Channel = 1;
-const int pwm3Channel = 2;
+const int pumingSpeed1 = 0;
+const int pumingSpeed2 = 1;
+const int pumingSpeed3 = 2;
 
 const int resolution = 8;
 int dutyCycle = 255;
 
-
-int senseDistance(){
- // Clears the trigPin
-digitalWrite(trigPin, LOW);
-delayMicroseconds(2);
-
-// Sets the trigPin on HIGH state for 10 micro seconds
-digitalWrite(trigPin, HIGH);
-delayMicroseconds(10);
-digitalWrite(trigPin, LOW);
-
-// Reads the echoPin, returns the sound wave travel time in microseconds
-duration = pulseIn(echoPin, HIGH);
-
-// Calculating the distance
-distance= duration*0.034/2;
-// Prints the distance on the Serial Monitor
-//Serial.print("Distance: ");
-//Serial.println(distance);
-return distance;
-}
-
-class Fruit1CB: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pFruit1) {
-    if(distance < 11){
-
-      std::string value = pFruit1->getValue();
-        if (value.length() > 0) {
-        Serial.println("*********");
-        Serial.print("FRUIT1: ");
-        for (int i = 0; i < value.length(); i++)
-          Serial.print(value[i]);
-
-        Serial.println();
-        Serial.println("*********");
-      }
-     }else{
-        Serial.print("Distance: ");
-        Serial.println(distance);
-        ledcWrite(pwm1Channel, 0);
-
-      }
-  }
-};
-
+int senseDistance();
+void startAdvertising();
 
 class Fruit2CB: public BLECharacteristicCallbacks {
+
+    private:
+      int pumpingSpeed;
+
+    public:
+      Fruit2CB(const int pS){
+        pumpingSpeed =pS;
+      }
+    
+
     void onWrite(BLECharacteristic *pFruit2) {
       distance = senseDistance();
 
-      if(distance < 30){
+      if(distance < MIN_DISTANCE){
         int val = atoi(pFruit2->getValue().c_str());
         Serial.println(val);
         val = map(val,400,2600,140,255);
   
         if(val > 1){
-          ledcWrite(pwm2Channel, val);
+          ledcWrite(pumpingSpeed, val);
         }else{
-          ledcWrite(pwm2Channel, 0);
+          ledcWrite(pumpingSpeed, 0);
 
         }
         Serial.println(val);
       }else{
         Serial.print("Distance: ");
         Serial.println(distance);
-        ledcWrite(pwm2Channel, 0);
+        ledcWrite(pumpingSpeed, 0);
 
       }
   }
 };
 
-class Fruit3CB: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pFruit3) {
-
-      std::string value = pFruit3->getValue();
-             if (value.length() > 0) {
-        Serial.println("*********");
-        Serial.print("FRUIT3: ");
-        for (int i = 0; i < value.length(); i++)
-          Serial.print(value[i]);
-
-        Serial.println();
-        Serial.println("*********");
-      }
-    }
-};
-
 class FlushCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pFlush) {
       distance = 1;
-      if(distance < 11){
+      if(distance < MIN_DISTANCE){
 
             std::string value = pFlush->getValue();
               int val = atoi(pFlush->getValue().c_str());
@@ -181,9 +135,9 @@ class FlushCB: public BLECharacteristicCallbacks {
         Serial.print("FLUSH ALL PUMPS TILL SOMETHING ELSE ARRIVES");
         Serial.println();
         Serial.println("*********");
-        ledcWrite(pwm1Channel, 255);
-        ledcWrite(pwm2Channel, 255);
-        ledcWrite(pwm3Channel, 255);
+        ledcWrite(pumingSpeed1, 255);
+        ledcWrite(pumingSpeed2, 255);
+        ledcWrite(pumingSpeed3, 255);
 
         delay(30000);
        
@@ -197,14 +151,14 @@ class FlushCB: public BLECharacteristicCallbacks {
     } else{
         Serial.print("Distance: ");
         Serial.println(distance);
-        ledcWrite(pwm1Channel, 0);
+        ledcWrite(pumingSpeed1, 0);
 
       }
   }
 };
 class DebugCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pDEBUG) {
-    if(distance < 11){
+    if(distance < MIN_DISTANCE){
 
         std::string value = pDEBUG->getValue();
 
@@ -220,7 +174,7 @@ class DebugCB: public BLECharacteristicCallbacks {
        }else{
         Serial.print("Distance: ");
         Serial.println(distance);
-        ledcWrite(pwm1Channel, 0);
+        ledcWrite(pumingSpeed1, 0);
 
       }
 }
@@ -237,9 +191,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(SERIAL_PORT);
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
   pinMode(enable1Pin, OUTPUT);
@@ -252,14 +205,14 @@ void setup() {
   pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
   pinMode(echoPin, INPUT); // Sets the echoPin as an Input
    // configure LED PWM functionalitites
-  ledcSetup(pwm1Channel, freq1, resolution);
-  ledcSetup(pwm2Channel, freq2, resolution);
-  ledcSetup(pwm3Channel, freq3, resolution);
+  ledcSetup(pumingSpeed1, freq1, resolution);
+  ledcSetup(pumingSpeed2, freq2, resolution);
+  ledcSetup(pumingSpeed3, freq3, resolution);
  
   // attach the channel to the GPIO to be controlled
-  ledcAttachPin(enable1Pin, pwm1Channel);
-  ledcAttachPin(enable2Pin, pwm2Channel);
-  ledcAttachPin(enable3Pin, pwm3Channel);
+  ledcAttachPin(enable1Pin, pumingSpeed1);
+  ledcAttachPin(enable2Pin, pumingSpeed2);
+  ledcAttachPin(enable3Pin, pumingSpeed3);
   // Create the BLE Device
   BLEDevice::init("ESP32");
 
@@ -312,15 +265,15 @@ pFruit3 = pService2->createCharacteristic(
   pFlush->setValue("Flush");
 
   pFruit1->addDescriptor(new BLE2902());
-  pFruit1->setCallbacks(new Fruit1CB());
+  pFruit1->setCallbacks(new Fruit2CB(pumingSpeed1));
   pFruit1->setValue("F1");
 
   pFruit2->addDescriptor(new BLE2902());
-  pFruit2->setCallbacks(new Fruit2CB());
+  pFruit2->setCallbacks(new Fruit2CB(pumingSpeed2));
   pFruit2->setValue("F2");
 
   pFruit3->addDescriptor(new BLE2902());
-  pFruit3->setCallbacks(new Fruit3CB());
+  pFruit3->setCallbacks(new Fruit2CB(pumingSpeed3));
   pFruit3->setValue("F3");
   // Start the service
   pService->start();
@@ -331,6 +284,23 @@ pFruit3 = pService2->createCharacteristic(
 
 
   // Start advertising
+  startAdvertising();
+
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  //ledcWrite(pumingSpeed1, 255);
+  //ledcWrite(pumingSpeed2, 255);
+  //ledcWrite(pumingSpeed3, 255);
+ //ledcWrite(pumingSpeed1, 255);
+  //digitalWrite(motor2Pin1, HIGH);
+  //digitalWrite(motor2Pin2, LOW);
+  //ledcWrite(pumingSpeed2, 100);
+  //digitalWrite(motor3Pin1, HIGH);
+  //digitalWrite(motor3Pin2, LOW);
+  //ledcWrite(pumingSpeed3, 255);
+}
+
+void startAdvertising(){
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->addServiceUUID(SERVICE2_UUID);
@@ -344,19 +314,8 @@ pFruit3 = pService2->createCharacteristic(
   pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
   BLEDevice::startAdvertising();
   Serial.println("Waiting a client connection to notify...");
-  digitalWrite(motor1Pin1, LOW);
-  digitalWrite(motor1Pin2, HIGH);
-  ledcWrite(pwm1Channel, 255);
-  ledcWrite(pwm2Channel, 255);
-  ledcWrite(pwm3Channel, 255);
- //ledcWrite(pwm1Channel, 255);
-  //digitalWrite(motor2Pin1, HIGH);
-  //digitalWrite(motor2Pin2, LOW);
-  //ledcWrite(pwm2Channel, 100);
-  //digitalWrite(motor3Pin1, HIGH);
-  //digitalWrite(motor3Pin2, LOW);
-  //ledcWrite(pwm3Channel, 255);
 }
+
 
 
 void loop() {
@@ -380,3 +339,24 @@ void loop() {
     
  
   }
+
+int senseDistance(){
+ // Clears the trigPin
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+
+// Sets the trigPin on HIGH state for 10 micro seconds
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+
+// Reads the echoPin, returns the sound wave travel time in microseconds
+duration = pulseIn(echoPin, HIGH);
+
+// Calculating the distance
+distance= duration*0.034/2;
+// Prints the distance on the Serial Monitor
+//Serial.print("Distance: ");
+//Serial.println(distance);
+return distance;
+}
