@@ -14,7 +14,7 @@ static BLEUUID masterUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 static BLEUUID slaveUUID("91a23343-0dc2-4f31-852e-de724658e6f4");
 
 // The characteristic of the remote service we are interested in.
-static BLEUUID    charUUID("fd64d496-6aeb-4374-9f69-89260a61c1c9");
+static BLEUUID    charUUID("e303dd59-69bf-4027-b64d-080e023c6105");
 
 static boolean doConnect = false;
 static boolean connected = false;
@@ -148,5 +148,5 @@ Serial.println(sensorVal);
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
   }
 
-  delay(100); // Delay a second between loops.
+  delay(120); // Delay a second between loops.
 } // End of loop 
