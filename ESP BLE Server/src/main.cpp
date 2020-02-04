@@ -1,3 +1,4 @@
+
 /*
     Video: https://www.youtube.com/watch?v=oCMOYS71NIU
     Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleNotify.cpp
@@ -19,11 +20,13 @@
 #include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
+#include <WiFi.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
@@ -40,7 +43,10 @@
 #define FRUIT3_UUID "e303dd59-69bf-4027-b64d-080e023c6105"
 #define SERIAL_PORT 9600
 
-#define MIN_DISTANCE 11
+#define MIN_DISTANCE 40
+
+const char* ssid     = "oof";
+const char* password = "datsalottadamage";
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pDebug = NULL;
@@ -86,13 +92,13 @@ int dutyCycle = 255;
 int senseDistance();
 void startAdvertising();
 
-class Fruit2CB: public BLECharacteristicCallbacks {
+class FruitCB: public BLECharacteristicCallbacks {
 
     private:
       int pumpingSpeed;
 
     public:
-      Fruit2CB(const int pS){
+      FruitCB(const int pS){
         pumpingSpeed =pS;
       }
     
@@ -102,8 +108,11 @@ class Fruit2CB: public BLECharacteristicCallbacks {
 
       if(distance < MIN_DISTANCE){
         int val = atoi(pFruit2->getValue().c_str());
-        Serial.println(val);
-        val = map(val,400,2600,140,255);
+      
+        val = map(val,100,1900,155,255);
+        if(val>255){
+          val=255;
+        }
   
         if(val > 1){
           ledcWrite(pumpingSpeed, val);
@@ -111,7 +120,10 @@ class Fruit2CB: public BLECharacteristicCallbacks {
           ledcWrite(pumpingSpeed, 0);
 
         }
-        Serial.println(val);
+   Serial.println(pFruit2->getValue().c_str());
+            Serial.print("FruitVal:");
+       Serial.println(val);
+        
       }else{
         Serial.print("Distance: ");
         Serial.println(distance);
@@ -119,6 +131,8 @@ class Fruit2CB: public BLECharacteristicCallbacks {
 
       }
   }
+
+
 };
 
 class FlushCB: public BLECharacteristicCallbacks {
@@ -192,7 +206,10 @@ class MyServerCallbacks: public BLEServerCallbacks {
 };
 
 void setup() {
+  delay(2000);
   Serial.begin(SERIAL_PORT);
+
+
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
   pinMode(enable1Pin, OUTPUT);
@@ -265,15 +282,15 @@ pFruit3 = pService2->createCharacteristic(
   pFlush->setValue("Flush");
 
   pFruit1->addDescriptor(new BLE2902());
-  pFruit1->setCallbacks(new Fruit2CB(pumingSpeed1));
+  pFruit1->setCallbacks(new FruitCB(pumingSpeed1));
   pFruit1->setValue("F1");
 
   pFruit2->addDescriptor(new BLE2902());
-  pFruit2->setCallbacks(new Fruit2CB(pumingSpeed2));
+  pFruit2->setCallbacks(new FruitCB(pumingSpeed2));
   pFruit2->setValue("F2");
 
   pFruit3->addDescriptor(new BLE2902());
-  pFruit3->setCallbacks(new Fruit2CB(pumingSpeed3));
+  pFruit3->setCallbacks(new FruitCB(pumingSpeed3));
   pFruit3->setValue("F3");
   // Start the service
   pService->start();
